@@ -1,0 +1,15 @@
+{
+  "name": "Luxoria AI Fashion Designer",
+  "short_name": "Luxoria",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
