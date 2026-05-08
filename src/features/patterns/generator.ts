@@ -1,5 +1,11 @@
 import type { Garment } from "@/types/garment";
 
+const STRETCH_RELIEF_FACTOR = 0.12;
+const MAX_STRETCH_RELIEF = 0.14;
+const MIN_FIT_EASE_CM = 2;
+const BASE_FIT_EASE_RATIO = 0.04;
+const STRETCH_EASE_REDUCTION = 0.4;
+
 export type PatternPanel = {
   name: "Bodice" | "Sleeve" | "Collar" | "Skirt" | "Waist panels" | "Lining panels";
   widthCm: number;
@@ -58,10 +64,14 @@ export function generatePattern(garment: Garment, seamAllowanceCm: number): Gene
   const baseLength = lengthFactor[garment.length];
   const baseSleeve = sleeveFactor[garment.sleeves];
   const layerFactor = 1 + garment.layers.length * 0.08;
-  const stretchRelief = 1 - Math.min(0.14, Math.max(0, garment.fabric.stretch * 0.12));
+  const stretchRelief = 1 - Math.min(MAX_STRETCH_RELIEF, Math.max(0, garment.fabric.stretch * STRETCH_RELIEF_FACTOR));
   const panelScale = baseSilhouette * baseLength * layerFactor * stretchRelief;
 
-  const fitEaseCm = Number((Math.max(2, bust * 0.04) * (1 - garment.fabric.stretch * 0.4)).toFixed(1));
+  const fitEaseCm = Number(
+    (Math.max(MIN_FIT_EASE_CM, bust * BASE_FIT_EASE_RATIO) * (1 - garment.fabric.stretch * STRETCH_EASE_REDUCTION)).toFixed(
+      1,
+    ),
+  );
 
   const panels: PatternPanel[] = [
     {

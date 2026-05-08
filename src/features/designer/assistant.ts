@@ -69,17 +69,33 @@ const LAYER_KEYWORDS: Array<{ keywords: string[]; value: Garment["layers"][numbe
   { keywords: ["chiffon layer", "transparent"], value: "Transparent chiffon layer" },
 ];
 
-function findMatch<T>(text: string, dictionary: Array<{ keywords: string[]; value: T }>): T | undefined {
+const NEGATION_PREFIXES = ["not ", "no ", "without "];
+
+function isNegated(text: string, matchIndex: number): boolean {
+  return NEGATION_PREFIXES.some((prefix) => text.slice(Math.max(0, matchIndex - 12), matchIndex).includes(prefix));
+}
+
+function findMatch<T>(
+  text: string,
+  dictionary: Array<{ keywords: string[]; value: T }>,
+  preference: "earliest" | "latest" = "earliest",
+): T | undefined {
   let best: { value: T; score: number } | undefined;
   for (const entry of dictionary) {
     for (const keyword of entry.keywords) {
-      const index = text.lastIndexOf(keyword);
-      if (index === -1) {
-        continue;
-      }
-      const score = index * 10 + keyword.length;
-      if (!best || score > best.score) {
-        best = { value: entry.value, score };
+      let searchStart = 0;
+      while (searchStart < text.length) {
+        const index = text.indexOf(keyword, searchStart);
+        if (index === -1) {
+          break;
+        }
+        const negatedPenalty = isNegated(text, index) ? 3000 : 0;
+        const directionalScore = preference === "latest" ? index : 1000 - index;
+        const score = directionalScore + keyword.length * 3 - negatedPenalty;
+        if (!best || score > best.score) {
+          best = { value: entry.value, score };
+        }
+        searchStart = index + keyword.length;
       }
     }
   }
@@ -130,7 +146,7 @@ export function deriveGarmentFromBrief(brief: string, current: Garment): Assista
     matchedRules.push(`closure → ${closure}`);
   }
 
-  const fabric = findMatch(text, FABRIC_KEYWORDS);
+  const fabric = findMatch(text, FABRIC_KEYWORDS, "latest");
   if (fabric) {
     nextGarment.fabric.type = fabric;
     matchedRules.push(`fabric → ${fabric}`);
