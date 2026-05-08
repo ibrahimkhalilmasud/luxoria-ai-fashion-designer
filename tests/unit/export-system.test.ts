@@ -7,6 +7,10 @@ describe("export system", () => {
       sizeLabel: "M",
       estimatedFabricMeters: 2.3,
       printableA4Pages: 6,
+      complexityScore: 58,
+      difficulty: "Advanced",
+      fitEaseCm: 3.2,
+      cuttingNotes: ["note"],
       panels: [
         { name: "Bodice", widthCm: 40, heightCm: 50, seamAllowanceCm: 1 },
         { name: "Sleeve", widthCm: 20, heightCm: 60, seamAllowanceCm: 1 },
