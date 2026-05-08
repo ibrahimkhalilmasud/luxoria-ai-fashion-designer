@@ -67,11 +67,12 @@ export function generatePattern(garment: Garment, seamAllowanceCm: number): Gene
   const stretchRelief = 1 - Math.min(MAX_STRETCH_RELIEF, Math.max(0, garment.fabric.stretch * STRETCH_RELIEF_FACTOR));
   const panelScale = baseSilhouette * baseLength * layerFactor * stretchRelief;
 
-  const fitEaseCm = Number(
-    (Math.max(MIN_FIT_EASE_CM, bust * BASE_FIT_EASE_RATIO) * (1 - garment.fabric.stretch * STRETCH_EASE_REDUCTION)).toFixed(
-      1,
-    ),
-  );
+  const fitEaseCm =
+    Math.round(
+      Math.max(MIN_FIT_EASE_CM, bust * BASE_FIT_EASE_RATIO) *
+        (1 - garment.fabric.stretch * STRETCH_EASE_REDUCTION) *
+        10,
+    ) / 10;
 
   const panels: PatternPanel[] = [
     {
@@ -135,7 +136,7 @@ export function generatePattern(garment: Garment, seamAllowanceCm: number): Gene
 
   return {
     sizeLabel: garment.sizePreset,
-    estimatedFabricMeters: Number((area * (1.24 + garment.layers.length * 0.05)).toFixed(2)),
+    estimatedFabricMeters: Math.round(area * (1.24 + garment.layers.length * 0.05) * 100) / 100,
     printableA4Pages: Math.ceil(area * 4),
     complexityScore,
     difficulty,

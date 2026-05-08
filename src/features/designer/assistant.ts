@@ -70,9 +70,14 @@ const LAYER_KEYWORDS: Array<{ keywords: string[]; value: Garment["layers"][numbe
 ];
 
 const NEGATION_PREFIXES = ["not ", "no ", "without "];
+const NEGATION_WINDOW_SIZE = 12;
+const BASE_POSITION_SCORE = 1000;
+const NEGATION_PENALTY_SCORE = 3000;
 
 function isNegated(text: string, matchIndex: number): boolean {
-  return NEGATION_PREFIXES.some((prefix) => text.slice(Math.max(0, matchIndex - 12), matchIndex).includes(prefix));
+  return NEGATION_PREFIXES.some((prefix) =>
+    text.slice(Math.max(0, matchIndex - NEGATION_WINDOW_SIZE), matchIndex).includes(prefix),
+  );
 }
 
 function findMatch<T>(
@@ -89,8 +94,8 @@ function findMatch<T>(
         if (index === -1) {
           break;
         }
-        const negatedPenalty = isNegated(text, index) ? 3000 : 0;
-        const directionalScore = preference === "latest" ? index : 1000 - index;
+        const negatedPenalty = isNegated(text, index) ? NEGATION_PENALTY_SCORE : 0;
+        const directionalScore = preference === "latest" ? index : BASE_POSITION_SCORE - index;
         const score = directionalScore + keyword.length * 3 - negatedPenalty;
         if (!best || score > best.score) {
           best = { value: entry.value, score };
