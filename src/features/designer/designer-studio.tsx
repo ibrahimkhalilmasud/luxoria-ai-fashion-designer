@@ -6,6 +6,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
 import { closures, fabrics, layers, lengths, necklines, silhouettes, sleeves } from "@/features/designer/options";
+import { deriveGarmentFromBrief } from "@/features/designer/assistant";
 import { exportCanvasPng, exportPatternSvg, exportProjectJson, exportTechPackPdfFallback } from "@/features/exports/exporters";
 import { generatePattern, toFlatPatternSvg } from "@/features/patterns/generator";
 import { getSketchPath, getStitchGuidePath } from "@/features/designer/sketch";
@@ -33,6 +34,8 @@ export function DesignerStudio() {
 
   const [uploadMessage, setUploadMessage] = useState<string>("");
   const [shareQr, setShareQr] = useState<string>("");
+  const [designBrief, setDesignBrief] = useState<string>("");
+  const [assistantMessage, setAssistantMessage] = useState<string>("");
   const sketchRef = useRef<SVGSVGElement>(null);
 
   const pattern = useMemo(() => generatePattern(garment, seamAllowanceCm), [garment, seamAllowanceCm]);
@@ -64,11 +67,44 @@ export function DesignerStudio() {
     await navigator.clipboard.writeText(shareUrl);
   }
 
+  function applyAssistantBrief() {
+    if (!designBrief.trim()) {
+      setAssistantMessage("Enter a client brief to auto-configure the design.");
+      return;
+    }
+    const { nextGarment, matchedRules } = deriveGarmentFromBrief(designBrief, garment);
+    if (matchedRules.length === 0) {
+      setAssistantMessage("No strong style cues found. Add details like silhouette, sleeves, fabric, or mood.");
+      return;
+    }
+    updateGarment("silhouette", nextGarment.silhouette);
+    updateGarment("sleeves", nextGarment.sleeves);
+    updateGarment("neckline", nextGarment.neckline);
+    updateGarment("length", nextGarment.length);
+    updateGarment("closure", nextGarment.closure);
+    updateGarment("layers", nextGarment.layers);
+    updateGarment("fabric", nextGarment.fabric);
+    setAssistantMessage(`Applied ${matchedRules.length} AI style rules: ${matchedRules.join(" • ")}`);
+  }
+
   return (
     <div className="grid min-h-screen grid-cols-1 gap-4 bg-zinc-950 p-4 text-zinc-100 lg:grid-cols-[310px_1fr_350px]">
       <aside className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
         <h2 className="mb-3 text-lg font-semibold text-amber-300">Design Studio</h2>
         <div className="space-y-3">
+          <div className="rounded border border-zinc-700 bg-zinc-950/80 p-2">
+            <p className="mb-1 text-xs font-semibold text-amber-300">AI Client Brief Assistant</p>
+            <textarea
+              className="h-24 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-200"
+              placeholder="Describe the desired dress style, event, coverage, and mood..."
+              value={designBrief}
+              onChange={(event) => setDesignBrief(event.target.value)}
+            />
+            <button className="mt-2 w-full rounded bg-amber-500 px-2 py-1 text-sm font-semibold text-black" onClick={applyAssistantBrief}>
+              Apply AI Brief
+            </button>
+            {assistantMessage && <p className="mt-2 text-[11px] text-zinc-300">{assistantMessage}</p>}
+          </div>
           <input
             className={selectClasses}
             value={projectName}
@@ -81,6 +117,15 @@ export function DesignerStudio() {
           <select className={selectClasses} value={garment.length} onChange={(event) => updateGarment("length", event.target.value as (typeof lengths)[number])}>{lengths.map((l) => <option key={l}>{l}</option>)}</select>
           <select className={selectClasses} value={garment.closure} onChange={(event) => updateGarment("closure", event.target.value as (typeof closures)[number])}>{closures.map((c) => <option key={c}>{c}</option>)}</select>
           <select className={selectClasses} value={garment.fabric.type} onChange={(event) => updateGarment("fabric", { ...garment.fabric, type: event.target.value as (typeof fabrics)[number] })}>{fabrics.map((f) => <option key={f}>{f}</option>)}</select>
+          <label className="text-xs text-zinc-400">Fabric opacity: {garment.fabric.opacity.toFixed(2)}
+            <input className="mt-1 block w-full" type="range" min="0.3" max="1" step="0.05" value={garment.fabric.opacity} onChange={(event) => updateGarment("fabric", { ...garment.fabric, opacity: Number(event.target.value) })} />
+          </label>
+          <label className="text-xs text-zinc-400">Fabric shine: {garment.fabric.shininess.toFixed(2)}
+            <input className="mt-1 block w-full" type="range" min="0" max="1" step="0.05" value={garment.fabric.shininess} onChange={(event) => updateGarment("fabric", { ...garment.fabric, shininess: Number(event.target.value) })} />
+          </label>
+          <label className="text-xs text-zinc-400">Fabric stretch: {garment.fabric.stretch.toFixed(2)}
+            <input className="mt-1 block w-full" type="range" min="0" max="1" step="0.05" value={garment.fabric.stretch} onChange={(event) => updateGarment("fabric", { ...garment.fabric, stretch: Number(event.target.value) })} />
+          </label>
           <label className="block text-xs text-zinc-400">Fabric upload (JPG/PNG/WEBP ≤ 5MB)</label>
           <input className="text-sm" type="file" accept="image/jpeg,image/png,image/webp" onChange={onFabricUpload} />
           {uploadMessage && <p className="text-xs text-amber-300">{uploadMessage}</p>}
@@ -158,6 +203,13 @@ export function DesignerStudio() {
         </div>
         <ul className="space-y-1 text-xs text-zinc-300">{pattern.panels.map((panel) => <li key={panel.name}>{panel.name}: {panel.widthCm}×{panel.heightCm}cm (SA {panel.seamAllowanceCm}cm)</li>)}</ul>
         <p className="mt-3 text-xs text-zinc-400">Est. fabric: {pattern.estimatedFabricMeters}m • A4 pages: {pattern.printableA4Pages} • DXF-ready panel metadata included in JSON export.</p>
+        <div className="mt-3 rounded border border-zinc-700 bg-zinc-950 p-2 text-xs">
+          <p className="text-zinc-300">Build intelligence:</p>
+          <p className="mt-1 text-zinc-400">Difficulty: <span className="text-amber-300">{pattern.difficulty}</span> • Complexity score: {pattern.complexityScore}/100 • Fit ease: {pattern.fitEaseCm}cm</p>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-zinc-400">
+            {pattern.cuttingNotes.map((note) => <li key={note}>{note}</li>)}
+          </ul>
+        </div>
         <div className="mt-3 rounded border border-zinc-700 bg-zinc-950 p-2">
           <Image
             src={`data:image/svg+xml;base64,${btoa(patternSvg)}`}
