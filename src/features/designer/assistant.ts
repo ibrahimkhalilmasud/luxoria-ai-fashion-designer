@@ -70,7 +70,20 @@ const LAYER_KEYWORDS: Array<{ keywords: string[]; value: Garment["layers"][numbe
 ];
 
 function findMatch<T>(text: string, dictionary: Array<{ keywords: string[]; value: T }>): T | undefined {
-  return dictionary.find((entry) => entry.keywords.some((keyword) => text.includes(keyword)))?.value;
+  let best: { value: T; score: number } | undefined;
+  for (const entry of dictionary) {
+    for (const keyword of entry.keywords) {
+      const index = text.lastIndexOf(keyword);
+      if (index === -1) {
+        continue;
+      }
+      const score = index * 10 + keyword.length;
+      if (!best || score > best.score) {
+        best = { value: entry.value, score };
+      }
+    }
+  }
+  return best?.value;
 }
 
 function extractLayers(text: string): Garment["layers"] {
